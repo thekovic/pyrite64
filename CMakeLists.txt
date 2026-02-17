@@ -14,10 +14,6 @@ endif()
 # set(SDL_SHARED ON)
 # set(SDL_STATIC ON)
 
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall -O2")
-# debug, disable LTO
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-lto")
-
 set(SDL_SHARED_DEFAULT OFF)
 set(BUILD_SHARED_LIBS off)
 add_subdirectory(vendored/SDL EXCLUDE_FROM_ALL)
@@ -238,7 +234,35 @@ add_executable(pyrite64 src/main.cpp
         src/utils/ringBuffer.h
 )
 
+if(MSVC)
+    target_compile_options(pyrite64 PRIVATE
+        /W4
+        /permissive-
+        /Zc:preprocessor
+    )
+
+    target_compile_definitions(pyrite64 PRIVATE
+        _CRT_SECURE_NO_WARNINGS
+        NOMINMAX
+    )
+# GCC / Clang
+else()
+    target_compile_options(pyrite64 PRIVATE
+        -Wall -Wextra -Wpedantic
+    )
+
+    target_compile_options(pyrite64 PRIVATE
+        $<$<CONFIG:Release>:-O2>
+        $<$<CONFIG:Debug>:-fno-lto>
+    )
+endif()
+
 target_include_directories(pyrite64 PRIVATE
+    n64
+)
+
+# Include 3rd party code as "SYSTEM" to supress warnings.
+target_include_directories(pyrite64 SYSTEM PRIVATE
     vendored
     vendored/imgui
     vendored/IconFontCppHeaders
@@ -250,7 +274,6 @@ target_include_directories(pyrite64 PRIVATE
     vendored/ImGuizmo
     vendored/tiny3d/tools/gltf_importer/src/lib
     vendored/libdragon
-    n64
 )
 
 
@@ -259,18 +282,35 @@ target_include_directories(pyrite64 PRIVATE
 target_compile_definitions(pyrite64 PRIVATE "PYRITE_VERSION=\"${PROJECT_VERSION}\"")
 target_compile_definitions(pyrite64 PRIVATE IMGUI_DEFINE_MATH_OPERATORS GLM_FORCE_QUAT_DATA_XYZW)
 
-set_target_properties(pyrite64 PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
+# Output binary in project root if not Visual Studio.
+if(NOT MSVC)
+    set_target_properties(pyrite64 PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}")
+endif()
+
+# Collect all translation units belonging to vendored libraries and disable warnings.
+get_target_property(PYRITE_SOURCES pyrite64 SOURCES)
+foreach(src ${PYRITE_SOURCES})
+    if(src MATCHES "/vendored/")
+        set_source_files_properties(${src} PROPERTIES COMPILE_OPTIONS
+            $<$<CXX_COMPILER_ID:MSVC>:/W0>
+            $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>
+        )
+    endif()
+endforeach()
+
 
 # Link to the actual SDL3 library.
 target_link_libraries(pyrite64 PRIVATE SDL3::SDL3 SDL3_image::SDL3_image glm::glm)
 
-if(MINGW)
+if(WIN32)
     set(APP_ICON_RESOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/icon.rc")
     target_sources(pyrite64 PRIVATE ${APP_ICON_RESOURCE})
 
-    target_link_options(pyrite64 PRIVATE
-        -static-libgcc
-        -static-libstdc++
-        --static
-    )
+    if(MINGW)
+        target_link_options(pyrite64 PRIVATE
+            -static-libgcc
+            -static-libstdc++
+            --static
+        )
+    endif()
 endif()

@@ -7,6 +7,13 @@
 
   "configurePresets": [
     {
+      "name": "windows-msvc",
+      "displayName": "Windows x86_64 (MSVC)",
+      "generator": "Visual Studio 18 2026",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build-msvc"
+    },
+    {
       "name": "windows-gcc",
       "displayName": "Windows x86_64 (GCC)",
       "generator": "Ninja",

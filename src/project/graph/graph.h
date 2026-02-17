@@ -5,10 +5,7 @@
 #pragma once
 #include <string>
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcomment"
 #include "ImNodeFlow.h"
-#pragma GCC diagnostic pop
 
 #include "../../utils/binaryFile.h"
 #include "nodes/baseNode.h"
